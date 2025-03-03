@@ -432,4 +432,49 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+    
+    // Handle eBay draft listing creation
+    var createEbayDraftBtn = document.getElementById('create_ebay_draft');
+    if (createEbayDraftBtn) {
+        createEbayDraftBtn.addEventListener('click', function() {
+            // Change button state to loading
+            createEbayDraftBtn.disabled = true;
+            createEbayDraftBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating Draft...';
+            
+            // Send request to create draft listing
+            fetch('/api/ebay/create_draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert('Draft listing created successfully! Listing ID: ' + data.listing_id);
+                    
+                    // Change button to success state
+                    createEbayDraftBtn.innerHTML = '<i class="fas fa-check me-2"></i>Draft Created';
+                    createEbayDraftBtn.classList.remove('btn-warning');
+                    createEbayDraftBtn.classList.add('btn-success');
+                } else {
+                    // Show error message
+                    alert('Error creating draft listing: ' + data.error);
+                    
+                    // Reset button
+                    createEbayDraftBtn.disabled = false;
+                    createEbayDraftBtn.innerHTML = '<i class="fas fa-tag me-2"></i>Create eBay Draft';
+                }
+            })
+            .catch(error => {
+                // Show error message
+                alert('Error creating draft listing: ' + error);
+                
+                // Reset button
+                createEbayDraftBtn.disabled = false;
+                createEbayDraftBtn.innerHTML = '<i class="fas fa-tag me-2"></i>Create eBay Draft';
+            });
+        });
+    }
 }); 

@@ -1,0 +1,72 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">eBay Account Settings</h4>
+                </div>
+                <div class="card-body">
+                    {% if authenticated %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> Connected to eBay
+                        </div>
+                        
+                        <form action="{{ url_for('update_ebay_settings') }}" method="post">
+                            <div class="mb-3">
+                                <label for="paypal_email" class="form-label">PayPal Email Address</label>
+                                <input type="email" class="form-control" id="paypal_email" name="paypal_email" 
+                                       value="{{ email }}" required>
+                                <div class="form-text">This email will be used for PayPal payments on your listings.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="postal_code" class="form-label">Postal Code</label>
+                                <input type="text" class="form-control" id="postal_code" name="postal_code" 
+                                       value="{{ postal_code }}" required>
+                                <div class="form-text">Your postal code for shipping calculations.</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Not connected to eBay
+                        </div>
+                        
+                        <p class="mb-4">Connect your eBay account to create draft listings directly on eBay.</p>
+                        
+                        <a href="{{ url_for('ebay_auth') }}" class="btn btn-primary">
+                            <i class="fas fa-link"></i> Connect to eBay
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Benefits of eBay Integration</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-check text-success"></i> Create draft listings directly on eBay
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check text-success"></i> Upload images to eBay's picture service
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check text-success"></i> Set more detailed item specifics
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check text-success"></i> Skip the CSV export process
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -11,6 +11,8 @@ from werkzeug.utils import secure_filename
 import openai
 from dotenv import load_dotenv
 import re
+import requests
+from ebay_api import ebay_client
 
 # Load environment variables
 load_dotenv()
@@ -552,6 +554,83 @@ def export_csv():
 def request_entity_too_large(error):
     flash('File too large! Maximum file size is 16MB.')
     return redirect(url_for('index')), 413
+
+# eBay Integration Routes
+@app.route('/auth/ebay')
+def ebay_auth():
+    """Start eBay OAuth flow"""
+    authorization_url = ebay_client.get_authorization_url()
+    return redirect(authorization_url)
+
+@app.route('/auth/ebay/callback')
+def ebay_callback():
+    """Handle eBay OAuth callback"""
+    code = request.args.get('code')
+    if not code:
+        flash('Authorization failed.')
+        return redirect(url_for('index'))
+    
+    try:
+        token = ebay_client.get_token_from_code(code)
+        flash('Successfully connected to eBay!')
+        return redirect(url_for('ebay_settings'))
+    except Exception as e:
+        flash(f'Error connecting to eBay: {str(e)}')
+        return redirect(url_for('index'))
+
+@app.route('/ebay/settings')
+def ebay_settings():
+    """eBay account settings page"""
+    # Check if user is authenticated with eBay
+    if 'ebay_token' not in session:
+        return render_template('ebay_settings.html', authenticated=False)
+    
+    return render_template('ebay_settings.html', 
+                          authenticated=True, 
+                          email=session.get('ebay_paypal_email', ''),
+                          postal_code=session.get('ebay_postal_code', ''))
+
+@app.route('/ebay/settings/update', methods=['POST'])
+def update_ebay_settings():
+    """Update eBay settings"""
+    session['ebay_paypal_email'] = request.form.get('paypal_email', '')
+    session['ebay_postal_code'] = request.form.get('postal_code', '')
+    flash('eBay settings updated successfully!')
+    return redirect(url_for('ebay_settings'))
+
+@app.route('/api/ebay/create_draft', methods=['POST'])
+def create_ebay_draft():
+    """Create a draft listing on eBay"""
+    if 'ebay_token' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated with eBay'})
+    
+    if 'item_data' not in session:
+        return jsonify({'success': False, 'error': 'No item data found'})
+    
+    # Get item data
+    item_data = session['item_data']
+    
+    # Upload images to eBay
+    images = session.get('uploaded_files', [])
+    image_urls = []
+    for image_path in images:
+        full_path = os.path.join(app.config['UPLOAD_FOLDER'], image_path)
+        result = ebay_client.upload_image(full_path)
+        if result['success']:
+            image_urls.append(result['image_url'])
+    
+    # Add image URLs to item data
+    item_data['image_urls'] = image_urls
+    
+    # Create draft listing
+    result = ebay_client.create_draft_listing(item_data)
+    
+    if result['success']:
+        flash('Successfully created draft listing on eBay!')
+        return jsonify(result)
+    else:
+        flash(f'Error creating draft listing: {result.get("error", "Unknown error")}')
+        return jsonify(result)
 
 if __name__ == '__main__':
     app.run(debug=True) 
