@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ item.title }}</title>
+    <style>
+        /* eBay-compatible CSS */
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .ebay-listing-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #e5e5e5;
+            background-color: #fff;
+        }
+        .listing-header {
+            text-align: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e5e5;
+            background-color: #f8f9fa;
+        }
+        .listing-title {
+            font-size: 24px;
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        .listing-subtitle {
+            font-size: 18px;
+            color: #666;
+            margin: 0 0 15px 0;
+        }
+        .listing-images {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .main-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .thumbnail-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        .item-details {
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .details-table td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+        .details-table td:first-child {
+            font-weight: bold;
+            width: 30%;
+        }
+        .section-heading {
+            font-size: 20px;
+            margin: 25px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e5e5;
+            color: #333;
+        }
+        .description-content {
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+        .features-list, .selling-points-list {
+            padding-left: 20px;
+        }
+        .features-list li, .selling-points-list li {
+            margin-bottom: 10px;
+        }
+        .selling-points {
+            background-color: #f0f7fc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border-left: 5px solid #0066c0;
+        }
+        .shipping-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+            color: #666;
+            border-top: 1px solid #e5e5e5;
+        }
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .thumbnail {
+                width: 80px;
+                height: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ebay-listing-container">
+        <!-- Listing Header -->
+        <div class="listing-header">
+            <h1 class="listing-title">{{ item.title }}</h1>
+            {% if item.subtitle %}
+            <h2 class="listing-subtitle">{{ item.subtitle }}</h2>
+            {% endif %}
+        </div>
+        
+        <!-- Main Image Gallery -->
+        <div class="listing-images">
+            {% if images %}
+            <img class="main-image" src="{{ url_for('static', filename=images[0].replace('static/', ''), _external=True) }}" alt="{{ item.title }}">
+            
+            {% if images|length > 1 %}
+            <div class="thumbnail-container">
+                {% for image_path in images %}
+                <img class="thumbnail" src="{{ url_for('static', filename=image_path.replace('static/', ''), _external=True) }}" alt="Item view {{ loop.index }}">
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+        
+        <!-- Item Details Table -->
+        <div class="item-details">
+            <table class="details-table">
+                <tr>
+                    <td>Condition:</td>
+                    <td>{{ item.condition }}</td>
+                </tr>
+                {% if item.brand %}
+                <tr>
+                    <td>Brand:</td>
+                    <td>{{ item.brand }}</td>
+                </tr>
+                {% endif %}
+                {% if item.model %}
+                <tr>
+                    <td>Model/MPN:</td>
+                    <td>{{ item.model }}</td>
+                </tr>
+                {% endif %}
+                {% if item.type_style %}
+                <tr>
+                    <td>Type/Style:</td>
+                    <td>{{ item.type_style }}</td>
+                </tr>
+                {% endif %}
+                {% if item.color %}
+                <tr>
+                    <td>Color:</td>
+                    <td>{{ item.color }}</td>
+                </tr>
+                {% endif %}
+                {% if item.size_dimensions %}
+                <tr>
+                    <td>Size/Dimensions:</td>
+                    <td>{{ item.size_dimensions }}</td>
+                </tr>
+                {% endif %}
+                {% if item.material %}
+                <tr>
+                    <td>Material:</td>
+                    <td>{{ item.material }}</td>
+                </tr>
+                {% endif %}
+                {% if item.category %}
+                <tr>
+                    <td>Category:</td>
+                    <td>{{ item.category }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        
+        <!-- Item Description -->
+        <h3 class="section-heading">Description</h3>
+        <div class="description-content">
+            {{ item.description | safe }}
+        </div>
+        
+        <!-- Condition Description -->
+        {% if item.condition_description %}
+        <h3 class="section-heading">Condition Details</h3>
+        <div class="condition-content">
+            {{ item.condition_description | safe }}
+        </div>
+        {% endif %}
+        
+        <!-- Included Items -->
+        {% if item.included_items %}
+        <h3 class="section-heading">What's Included</h3>
+        <div class="included-items-content">
+            {{ item.included_items | safe }}
+        </div>
+        {% endif %}
+        
+        <!-- Shipping Information -->
+        <div class="shipping-info">
+            <h3 class="section-heading">Shipping & Handling</h3>
+            {% if item.shipping_details %}
+                {{ item.shipping_details | safe }}
+            {% else %}
+                <p>This item will be carefully packaged to ensure safe delivery.</p>
+                <p>Please check the shipping options available during checkout. We ship promptly after receiving payment.</p>
+                <p>Please contact us with any questions prior to purchasing.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Return Policy -->
+        {% if item.return_policy %}
+        <div class="return-policy">
+            <h3 class="section-heading">Return Policy</h3>
+            <div class="return-policy-content">
+                {{ item.return_policy | safe }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Thank you for your interest in this item! If you have any questions, please don't hesitate to contact me.</p>
+        </div>
+    </div>
+</body>
+</html> 
