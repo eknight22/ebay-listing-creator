@@ -117,7 +117,7 @@ class EbayAPIClient:
         # Add RuName parameter if using eBay RU name format
         if not '://' in EBAY_RU_NAME:
             token_data['runame'] = EBAY_RU_NAME
-        
+            
         # eBay requires client_id and client_secret in the Authorization header
         auth = (EBAY_CLIENT_ID, EBAY_CLIENT_SECRET)
         
@@ -135,7 +135,21 @@ class EbayAPIClient:
             if response.status_code == 200:
                 token = response.json()
                 print(f"Token retrieved successfully. Access token length: {len(token.get('access_token', ''))}")
-                session['ebay_token'] = token
+                
+                # Store only essential token info to reduce session size
+                essential_token = {
+                    'access_token': token.get('access_token'),
+                    'refresh_token': token.get('refresh_token'),
+                    'expires_at': int(time.time()) + token.get('expires_in', 7200),
+                    'token_type': token.get('token_type', 'Bearer')
+                }
+                
+                session['ebay_token'] = essential_token
+                
+                # Print session size debug info
+                token_size = len(json.dumps(essential_token))
+                print(f"Token storage size (bytes): {token_size}")
+                
                 return token
             else:
                 print(f"Error retrieving token. Status code: {response.status_code}")

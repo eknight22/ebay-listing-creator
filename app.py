@@ -22,6 +22,24 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 
+# Configure session to have server-side storage
+# This will prevent issues with large session cookies
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = os.path.join(os.getcwd(), 'flask_session')
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+
+# Create session directory if it doesn't exist
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+
+try:
+    from flask_session import Session
+    Session(app)
+    print("Using server-side sessions with flask-session")
+except ImportError:
+    print("flask-session not installed, falling back to client-side sessions")
+    # If flask-session isn't available, continue with default cookie sessions
+
 # Initialize eBay client with app
 ebay_client.init_app(app)
 
@@ -705,6 +723,14 @@ def ebay_callback():
 def ebay_settings():
     """eBay settings page"""
     authenticated = 'ebay_token' in session
+    
+    # Debug logging
+    print("---- eBay Settings Debug ----")
+    print(f"Session keys: {list(session.keys())}")
+    print(f"Authenticated: {authenticated}")
+    if 'ebay_token' in session:
+        print(f"Token type: {type(session['ebay_token'])}")
+        print(f"Token keys: {list(session['ebay_token'].keys()) if isinstance(session['ebay_token'], dict) else 'Not a dict'}")
     
     # Get PayPal email and postal code from session
     email = session.get('ebay_paypal_email', '')
