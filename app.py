@@ -26,6 +26,9 @@ ebay_client.init_app(app)
 
 # OpenAI API configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
+# Remove any proxy configuration that might be causing issues
+if hasattr(openai, 'proxy'):
+    delattr(openai, 'proxy')
 
 # Configure upload settings
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
