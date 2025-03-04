@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import re
 import requests
 from ebay_api import ebay_client
+import time
 
 # Load environment variables
 load_dotenv()
@@ -715,8 +716,8 @@ def ebay_callback():
         token = ebay_client.get_token_from_code(code)
         flash('Successfully connected to eBay!')
         
-        # Redirect to the debug page first to verify authentication
-        return redirect(url_for('ebay_debug'))
+        # Redirect back to the settings page
+        return redirect(url_for('ebay_settings'))
     except Exception as e:
         flash(f'Error connecting to eBay: {str(e)}')
         return redirect(url_for('index'))
@@ -734,26 +735,12 @@ def ebay_settings():
         print(f"Token type: {type(session['ebay_token'])}")
         print(f"Token keys: {list(session['ebay_token'].keys()) if isinstance(session['ebay_token'], dict) else 'Not a dict'}")
     
-    # Get PayPal email and postal code from session
-    email = session.get('ebay_paypal_email', '')
-    postal_code = session.get('ebay_postal_code', '')
-    
     # Get sandbox mode from environment
     sandbox_mode = os.environ.get('EBAY_SANDBOX', 'True').lower() in ('true', 'yes', '1')
     
     return render_template('ebay_settings.html', 
                           authenticated=authenticated,
-                          email=email,
-                          postal_code=postal_code,
                           sandbox_mode=sandbox_mode)
-
-@app.route('/ebay/settings/update', methods=['POST'])
-def update_ebay_settings():
-    """Update eBay settings"""
-    session['ebay_paypal_email'] = request.form.get('paypal_email', '')
-    session['ebay_postal_code'] = request.form.get('postal_code', '')
-    flash('eBay settings updated successfully!')
-    return redirect(url_for('ebay_settings'))
 
 @app.route('/api/ebay/create_draft', methods=['POST'])
 def create_ebay_draft():
@@ -842,11 +829,9 @@ def mock_ebay_auth():
     session['ebay_token'] = {
         'access_token': 'mock_access_token',
         'refresh_token': 'mock_refresh_token',
-        'expires_in': 7200,
+        'expires_at': int(time.time()) + 7200,
         'token_type': 'User'
     }
-    session['ebay_paypal_email'] = 'test@example.com'
-    session['ebay_postal_code'] = '12345'
     flash('Successfully connected to eBay (MOCK)!')
     return redirect(url_for('preview'))
 

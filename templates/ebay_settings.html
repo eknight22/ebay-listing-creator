@@ -51,23 +51,13 @@
                             </div>
                             {% endif %}
                             
-                            <form action="{{ url_for('update_ebay_settings') }}" method="post">
-                                <div class="mb-3">
-                                    <label for="paypal_email" class="form-label">PayPal Email Address</label>
-                                    <input type="email" class="form-control" id="paypal_email" name="paypal_email" 
-                                           value="{{ email }}" required>
-                                    <div class="form-text">This email will be used for PayPal payments on your listings.</div>
-                                </div>
+                            <div class="text-center">
+                                <p class="mb-4">Your eBay account is connected and ready to use. You can now create draft listings directly on eBay.</p>
                                 
-                                <div class="mb-3">
-                                    <label for="postal_code" class="form-label">Postal Code</label>
-                                    <input type="text" class="form-control" id="postal_code" name="postal_code" 
-                                           value="{{ postal_code }}" required>
-                                    <div class="form-text">Your postal code for shipping calculations.</div>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary">Save Settings</button>
-                            </form>
+                                <a href="{{ url_for('preview') }}" class="btn btn-primary">
+                                    <i class="fas fa-boxes"></i> Create Listings
+                                </a>
+                            </div>
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="fas fa-exclamation-triangle"></i> Not connected to eBay
