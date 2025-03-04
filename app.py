@@ -9,6 +9,7 @@ from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, send_file, Response
 from werkzeug.utils import secure_filename
 import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import re
 import requests
@@ -24,11 +25,9 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 # Initialize eBay client with app
 ebay_client.init_app(app)
 
-# OpenAI API configuration
-openai.api_key = os.getenv('OPENAI_API_KEY')
-# Remove any proxy configuration that might be causing issues
-if hasattr(openai, 'proxy'):
-    delattr(openai, 'proxy')
+# OpenAI API configuration - using the new client initialization method
+# This avoids the issue with proxies parameter
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Configure upload settings
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
@@ -130,7 +129,7 @@ def analyze_images():
                 })
         
         # Call OpenAI Vision API
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
