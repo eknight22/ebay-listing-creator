@@ -107,7 +107,7 @@ To enable direct eBay listing creation, you need to:
    EBAY_RU_NAME=your_ebay_ru_name_here
    
    # eBay environment (True for sandbox, False for production)
-   EBAY_SANDBOX=True
+   EBAY_SANDBOX=False
    
    # eBay site ID (0 = US, 3 = UK, 77 = Germany, etc.)
    EBAY_SITE_ID=0
@@ -116,6 +116,13 @@ To enable direct eBay listing creation, you need to:
 4. Configure your eBay application's OAuth settings:
    - Set the OAuth Redirect URL to: `http://your-domain.com/auth/ebay/callback`
    - For local testing: `http://localhost:5000/auth/ebay/callback`
+
+> **IMPORTANT**: When switching from sandbox mode (`EBAY_SANDBOX=True`) to production mode (`EBAY_SANDBOX=False`), make sure you:
+> - Use production eBay API credentials (not sandbox credentials)
+> - Update your OAuth Redirect URL in your eBay Developer Account to point to your production domain
+> - Be aware that in production mode, all operations will create REAL listings on your eBay account
+> - Test thoroughly before publishing listings publicly
+> - Make sure your RU name is properly configured for the production environment
 
 For more information on eBay API integration, see the [eBay Developer Documentation](https://developer.ebay.com/develop/guides)
 

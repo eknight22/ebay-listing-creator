@@ -437,6 +437,19 @@ document.addEventListener('DOMContentLoaded', function() {
     var createEbayDraftBtn = document.getElementById('create_ebay_draft');
     if (createEbayDraftBtn) {
         createEbayDraftBtn.addEventListener('click', function() {
+            // Check if we're in production mode
+            const isProductionMode = document.querySelector('.alert-danger') !== null;
+            
+            let confirmMessage = 'Create a draft listing on eBay?';
+            if (isProductionMode) {
+                confirmMessage = 'WARNING: You are in PRODUCTION MODE. This will create a REAL draft listing on your eBay account. Continue?';
+            }
+            
+            // Ask for confirmation
+            if (!confirm(confirmMessage)) {
+                return; // User cancelled
+            }
+            
             // Change button state to loading
             createEbayDraftBtn.disabled = true;
             createEbayDraftBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating Draft...';
@@ -451,8 +464,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    let successMessage = 'Draft listing created successfully! Listing ID: ' + data.listing_id;
+                    
+                    // Add environment info if available
+                    if (data.environment === 'production') {
+                        successMessage = 'PRODUCTION: ' + successMessage + '\n\nThis listing has been created on your REAL eBay account.';
+                    }
+                    
                     // Show success message
-                    alert('Draft listing created successfully! Listing ID: ' + data.listing_id);
+                    alert(successMessage);
                     
                     // Change button to success state
                     createEbayDraftBtn.innerHTML = '<i class="fas fa-check me-2"></i>Draft Created';

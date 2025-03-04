@@ -378,10 +378,14 @@ def generate_listing():
 def preview():
     if 'item_data' not in session or 'uploaded_files' not in session:
         return redirect(url_for('index'))
+    
+    # Get sandbox mode from environment
+    sandbox_mode = os.environ.get('EBAY_SANDBOX', 'True').lower() in ('true', 'yes', '1')
         
     return render_template('preview.html', 
                           item=session['item_data'], 
-                          images=session['uploaded_files'])
+                          images=session.get('uploaded_files', []),
+                          sandbox_mode=sandbox_mode)
 
 @app.route('/export')
 def export():
@@ -410,7 +414,7 @@ def export_csv():
     writer = csv.writer(output)
     
     # Write header rows (info rows)
-    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US', '', '', '', '', '', '', '', '', '', ''])
+    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO', '', '', '', '', '', '', '', '', '', ''])
@@ -623,15 +627,21 @@ def ebay_callback():
 
 @app.route('/ebay/settings')
 def ebay_settings():
-    """eBay account settings page"""
-    # Check if user is authenticated with eBay
-    if 'ebay_token' not in session:
-        return render_template('ebay_settings.html', authenticated=False)
+    """eBay settings page"""
+    authenticated = 'ebay_token' in session
+    
+    # Get PayPal email and postal code from session
+    email = session.get('ebay_paypal_email', '')
+    postal_code = session.get('ebay_postal_code', '')
+    
+    # Get sandbox mode from environment
+    sandbox_mode = os.environ.get('EBAY_SANDBOX', 'True').lower() in ('true', 'yes', '1')
     
     return render_template('ebay_settings.html', 
-                          authenticated=True, 
-                          email=session.get('ebay_paypal_email', ''),
-                          postal_code=session.get('ebay_postal_code', ''))
+                          authenticated=authenticated,
+                          email=email,
+                          postal_code=postal_code,
+                          sandbox_mode=sandbox_mode)
 
 @app.route('/ebay/settings/update', methods=['POST'])
 def update_ebay_settings():
@@ -652,6 +662,9 @@ def create_ebay_draft():
     
     # Get item data
     item_data = session['item_data']
+    
+    # Check if we're in production mode
+    sandbox_mode = os.environ.get('EBAY_SANDBOX', 'True').lower() in ('true', 'yes', '1')
     
     # Check if we're using mock authentication
     is_mock = isinstance(session.get('ebay_token'), dict) and session['ebay_token'].get('access_token', '').startswith('mock_')
@@ -675,6 +688,10 @@ def create_ebay_draft():
     
     # For real eBay integration:
     try:
+        # Add a log for production mode
+        if not sandbox_mode:
+            app.logger.warning(f"Creating PRODUCTION eBay listing: {item_data.get('title', 'Unknown Title')}")
+            
         # Upload images to eBay
         images = session.get('uploaded_files', [])
         image_urls = []
@@ -691,7 +708,16 @@ def create_ebay_draft():
         result = ebay_client.create_draft_listing(item_data)
         
         if result['success']:
-            flash('Successfully created draft listing on eBay!')
+            # Add production mode indicator to the message
+            message = 'Successfully created draft listing on eBay!'
+            if not sandbox_mode:
+                message = 'PRODUCTION MODE: ' + message
+                
+            flash(message)
+            
+            # Add environment info to the result
+            result['environment'] = 'production' if not sandbox_mode else 'sandbox'
+            
             return jsonify(result)
         else:
             flash(f'Error creating draft listing: {result.get("error", "Unknown error")}')
