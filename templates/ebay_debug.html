@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>eBay Authentication Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #0053a0; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow: auto; }
+        button { padding: 10px 15px; background-color: #0053a0; color: white; border: none; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #003d75; }
+    </style>
+</head>
+<body>
+    <h1>eBay Authentication Debug Information</h1>
+    
+    <div class="card {% if authenticated %}success{% else %}error{% endif %}">
+        <h2>Authentication Status</h2>
+        <p>Authenticated: <strong>{{ authenticated }}</strong></p>
+        {% if authenticated %}
+            <p>✅ Your eBay account is connected</p>
+        {% else %}
+            <p>❌ Not connected to eBay</p>
+        {% endif %}
+    </div>
+    
+    <div class="card">
+        <h2>Session Information</h2>
+        <p>Session Keys:</p>
+        <pre>{{ session_keys|join(', ') }}</pre>
+        
+        {% if token_info %}
+        <h3>Token Information</h3>
+        <pre>{{ token_info|tojson(indent=2) }}</pre>
+        {% endif %}
+    </div>
+    
+    <div class="card">
+        <h2>Test Actions</h2>
+        <a href="{{ url_for('ebay_auth') }}"><button>Try Authentication Again</button></a>
+        <a href="{{ url_for('index') }}"><button>Return to Home</button></a>
+    </div>
+    
+    <div class="card">
+        <h2>Technical Information</h2>
+        <p>Current URL: <code>{{ request.url }}</code></p>
+        <p>HTTP Method: <code>{{ request.method }}</code></p>
+        <p>User Agent: <code>{{ request.headers.get('User-Agent') }}</code></p>
+        <p>Flask-Session Type: <code>{{ session_type }}</code></p>
+    </div>
+</body>
+</html> 

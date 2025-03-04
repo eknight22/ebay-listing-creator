@@ -714,7 +714,9 @@ def ebay_callback():
     try:
         token = ebay_client.get_token_from_code(code)
         flash('Successfully connected to eBay!')
-        return redirect(url_for('ebay_settings'))
+        
+        # Redirect to the debug page first to verify authentication
+        return redirect(url_for('ebay_debug'))
     except Exception as e:
         flash(f'Error connecting to eBay: {str(e)}')
         return redirect(url_for('index'))
@@ -870,6 +872,33 @@ def ebay_local_callback():
     except Exception as e:
         flash(f'Error in mock eBay authentication: {str(e)}')
         return redirect(url_for('index'))
+
+@app.route('/ebay/debug')
+def ebay_debug():
+    """Debug page for eBay authentication issues"""
+    authenticated = 'ebay_token' in session
+    
+    # Get session keys and token info
+    session_keys = list(session.keys())
+    token_info = None
+    if 'ebay_token' in session:
+        # Only include non-sensitive fields for security
+        token = session['ebay_token']
+        token_info = {
+            'token_type': token.get('token_type'),
+            'expires_at': token.get('expires_at'),
+            'access_token_length': len(token.get('access_token', '')),
+            'refresh_token_length': len(token.get('refresh_token', '')),
+        }
+    
+    # Get session type
+    session_type = app.config.get('SESSION_TYPE', 'client-side (cookie)')
+    
+    return render_template('ebay_debug.html', 
+                          authenticated=authenticated,
+                          session_keys=session_keys,
+                          token_info=token_info,
+                          session_type=session_type)
 
 if __name__ == '__main__':
     # Get port from environment variable (for Render compatibility)
