@@ -228,7 +228,7 @@ class EbayAPIClient:
                     'ShippingServiceOptions': {
                         'ShippingServicePriority': '1',
                         'ShippingService': 'USPSPriority',
-                        'ShippingServiceCost': '0.0'
+                        'ShippingServiceCost': item_data.get('shipping_cost', '0.0')
                     }
                 },
                 'Site': 'US'
@@ -239,11 +239,90 @@ class EbayAPIClient:
         if item_data.get('condition'):
             condition_map = {
                 'New': '1000',
+                'New without tags': '1500',
+                'New with defects': '1750',
                 'New other': '1500',
                 'Used': '3000',
+                'Very Good': '4000',
+                'Good': '5000',
+                'Acceptable': '6000',
                 'For parts/not working': '7000'
             }
             item['Item']['ConditionID'] = condition_map.get(item_data.get('condition'), '3000')
+        
+        # Add specific item details
+        item_specifics = []
+        
+        # Add brand if available
+        if item_data.get('brand'):
+            item_specifics.append({
+                'Name': 'Brand',
+                'Value': item_data.get('brand')
+            })
+            
+        # Add model if available
+        if item_data.get('model'):
+            item_specifics.append({
+                'Name': 'Model',
+                'Value': item_data.get('model')
+            })
+            
+        # Add color if available
+        if item_data.get('color'):
+            item_specifics.append({
+                'Name': 'Color',
+                'Value': item_data.get('color')
+            })
+            
+        # Add size/dimensions if available
+        if item_data.get('size_dimensions'):
+            item_specifics.append({
+                'Name': 'Size',
+                'Value': item_data.get('size_dimensions')
+            })
+            
+        # Add material if available
+        if item_data.get('material'):
+            item_specifics.append({
+                'Name': 'Material',
+                'Value': item_data.get('material')
+            })
+            
+        # Add type/style if available
+        if item_data.get('type_style'):
+            item_specifics.append({
+                'Name': 'Style',
+                'Value': item_data.get('type_style')
+            })
+            
+        # Add MPN (Manufacturer Part Number) if available
+        if item_data.get('mpn'):
+            item_specifics.append({
+                'Name': 'MPN',
+                'Value': item_data.get('mpn')
+            })
+            
+        # Add UPC if available
+        if item_data.get('upc'):
+            item['Item']['ProductListingDetails'] = {
+                'UPC': item_data.get('upc')
+            }
+            
+        # Add EAN if available
+        if item_data.get('ean'):
+            if 'ProductListingDetails' not in item['Item']:
+                item['Item']['ProductListingDetails'] = {}
+            item['Item']['ProductListingDetails']['EAN'] = item_data.get('ean')
+            
+        # Add ISBN if available
+        if item_data.get('isbn'):
+            if 'ProductListingDetails' not in item['Item']:
+                item['Item']['ProductListingDetails'] = {}
+            item['Item']['ProductListingDetails']['ISBN'] = item_data.get('isbn')
+        
+        # Add all item specifics if we have any
+        if item_specifics:
+            item['Item']['ItemSpecifics'] = {'NameValueList': item_specifics}
         
         # Add SubTitle if present
         if item_data.get('subtitle'):
@@ -252,6 +331,12 @@ class EbayAPIClient:
         # Add Buy It Now price if present
         if item_data.get('buy_it_now_price'):
             item['Item']['BuyItNowPrice'] = item_data.get('buy_it_now_price')
+            
+        # Add custom shipping details if provided
+        if item_data.get('shipping_details'):
+            # Basic shipping cost handling - more complex shipping options would need custom UI fields
+            if item_data.get('shipping_cost'):
+                item['Item']['ShippingDetails']['ShippingServiceOptions']['ShippingServiceCost'] = item_data.get('shipping_cost')
         
         # Set listing as draft
         item['Item']['InventoryTrackingMethod'] = 'NotTracked'

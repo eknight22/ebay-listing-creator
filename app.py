@@ -156,10 +156,14 @@ def analyze_images():
                                - Size/Dimensions
                                - Color
                                - Material
-                               - Condition (New, New other, Used, For parts/not working)
+                               - Condition (New, New without tags, New with defects, New other, Used, Very Good, Good, Acceptable, For parts/not working)
                                - Condition Description (detailed assessment of flaws/wear)
+                               - UPC (if applicable)
+                               - EAN (if applicable)
+                               - ISBN (if applicable)
                             5. Price (starting bid and Buy It Now if applicable)
-                            6. Item Description:
+                            6. Shipping (estimated weight, package size, and shipping cost)
+                            7. Item Description:
                                - Create a captivating, detailed description that builds desire
                                - Highlight unique features and benefits
                                - Address condition honestly but positively
@@ -169,9 +173,9 @@ def analyze_images():
                                - Use HTML formatting to make the description visually appealing
                                - Include bullet points for key features
                                - Use headings and subheadings to organize information
-                            7. Shipping Details (weight estimate, recommended shipping methods)
-                            8. Return Policy Recommendation
-                            9. Keywords (for SEO)
+                            8. Shipping Details (weight estimate, recommended shipping methods)
+                            9. Return Policy Recommendation
+                            10. Keywords (for SEO)
                             
                             Structure your response as a JSON object with these exact field names:
                             {
@@ -184,13 +188,17 @@ def analyze_images():
                               "color": "Color",
                               "size_dimensions": "Size or dimensions",
                               "material": "Material",
-                              "condition": "New/New other/Used/For parts/not working",
+                              "condition": "New/New without tags/New with defects/New other/Used/Very Good/Good/Acceptable/For parts/not working",
                               "condition_description": "Detailed condition assessment",
+                              "upc": "UPC if applicable",
+                              "ean": "EAN if applicable",
+                              "isbn": "ISBN if applicable",
                               "starting_price": "Starting bid amount (number only, no $ sign)",
                               "buy_it_now_price": "Buy It Now price (number only, no $ sign)",
+                              "shipping_cost": "Estimated shipping cost (number only, no $ sign)",
                               "description": "Detailed item description with HTML formatting",
                               "included_items": "What's included with the item",
-                              "shipping_details": "Shipping information",
+                              "shipping_details": "Shipping information including weight and package size",
                               "return_policy": "Return policy details",
                               "keywords": ["keyword1", "keyword2", "etc"]
                             }
@@ -247,10 +255,15 @@ def analyze_images():
                     "material": item_data.get("material", ""),
                     "condition": item_data.get("condition", "Used"),
                     "condition_description": item_data.get("condition_description", ""),
+                    "upc": item_data.get("upc", ""),
+                    "ean": item_data.get("ean", ""),
+                    "isbn": item_data.get("isbn", ""),
                     "starting_price": item_data.get("starting_price", "") or item_data.get("starting_bid", "") or 
                                      (item_data.get("price", {}).get("starting_bid") if isinstance(item_data.get("price"), dict) else ""),
                     "buy_it_now_price": item_data.get("buy_it_now_price", "") or item_data.get("buy_it_now", "") or 
                                        (item_data.get("price", {}).get("buy_it_now") if isinstance(item_data.get("price"), dict) else ""),
+                    "shipping_cost": item_data.get("shipping_cost", "") or 
+                                    (item_data.get("shipping", {}).get("cost") if isinstance(item_data.get("shipping"), dict) else ""),
                     "description": item_data.get("description", "") or item_data.get("item_description", ""),
                     "included_items": item_data.get("included_items", "") or item_data.get("whats_included", "") or item_data.get("accessories", ""),
                     "shipping_details": item_data.get("shipping_details", "") or item_data.get("shipping", ""),
@@ -285,8 +298,12 @@ def analyze_images():
                     "material": "",
                     "condition": "Used",
                     "condition_description": "",
+                    "upc": "",
+                    "ean": "",
+                    "isbn": "",
                     "starting_price": "",
                     "buy_it_now_price": "",
+                    "shipping_cost": "",
                     "description": result_text,
                     "included_items": "",
                     "shipping_details": "",
@@ -307,8 +324,12 @@ def analyze_images():
                 "material": "",
                 "condition": "Used",
                 "condition_description": "",
+                "upc": "",
+                "ean": "",
+                "isbn": "",
                 "starting_price": "",
                 "buy_it_now_price": "",
+                "shipping_cost": "",
                 "description": result_text,
                 "included_items": "",
                 "shipping_details": "",
@@ -389,7 +410,7 @@ def export_csv():
     writer = csv.writer(output)
     
     # Write header rows (info rows)
-    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US', '', '', '', '', '', '', ''])
+    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts', '', '', '', '', '', '', '', '', '', ''])
     writer.writerow(['#INFO', '', '', '', '', '', '', '', '', '', ''])
@@ -400,20 +421,32 @@ def export_csv():
         'Custom label (SKU)', 
         'Category ID', 
         'Title', 
+        'Subtitle',
         'UPC', 
+        'EAN',
+        'ISBN',
+        'Brand',
+        'MPN',
         'Price', 
+        'Buy It Now Price',
         'Quantity', 
         'Item photo URL', 
         'Condition ID', 
         'Description', 
-        'Format'
+        'Format',
+        'Shipping service cost'
     ])
     
     # Map condition to eBay condition ID
     condition_map = {
-        'New': 'NEW',           # New with tags/New with box
-        'New other': 'NEW_OTHER',     # New without tags/New without box
-        'Used': 'USED',          # Used
+        'New': 'NEW',                    # New with tags/New with box
+        'New without tags': 'NEW_OTHER', # New without tags
+        'New with defects': 'NEW_WITH_DEFECTS', # New with defects
+        'New other': 'NEW_OTHER',        # New without tags/New without box
+        'Used': 'USED',                  # Used
+        'Very Good': 'VERY_GOOD',        # Very Good
+        'Good': 'GOOD',                  # Good
+        'Acceptable': 'ACCEPTABLE',      # Acceptable
         'For parts/not working': 'FOR_PARTS'  # For parts or not working
     }
     
@@ -535,13 +568,20 @@ def export_csv():
         '',                               # Custom label (SKU)
         category_id,                      # Category ID
         item_data.get('title', ''),       # Title
-        '',                               # UPC
+        item_data.get('subtitle', ''),     # Subtitle
+        item_data.get('upc', ''),          # UPC
+        item_data.get('ean', ''),          # EAN
+        item_data.get('isbn', ''),         # ISBN
+        item_data.get('brand', ''),         # Brand
+        item_data.get('model', ''),         # MPN
         price,                            # Price
+        item_data.get('buy_it_now_price', ''), # Buy It Now Price
         '1',                              # Quantity
         image_url,                        # Item photo URL
         condition_id,                     # Condition ID
         description,                      # Description
-        'Auction'                         # Format (changed from 'FixedPrice' to 'Auction')
+        'Auction',                        # Format (changed from 'FixedPrice' to 'Auction')
+        item_data.get('shipping_cost', '') # Shipping service cost
     ])
     
     # Prepare the CSV for download
