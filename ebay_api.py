@@ -180,7 +180,7 @@ class EbayAPIClient:
                 'siteid': EBAY_SITE_ID
             }
         
-        return Trading(config_dict=config_dict)
+        return Trading(config_dict=config_dict, config_file=None)
     
     def create_draft_listing(self, item_data):
         """Create a draft listing on eBay"""
