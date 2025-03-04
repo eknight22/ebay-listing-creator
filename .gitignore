@@ -1,7 +1,8 @@
 # Environment variables
 .env
+.env.*
 
-# Python cache files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -22,19 +23,14 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual Environment
 venv/
-ENV/
-env/
+.venv/
 
-# IDE specific files
-.idea/
-.vscode/
-*.swp
-*.swo
+# Uploads folder contents (but keep the folder)
+static/uploads/*
+!static/uploads/.gitkeep
 
-# OS generated files
+# OS specific
 .DS_Store
 .DS_Store?
 ._*
@@ -43,9 +39,11 @@ env/
 ehthumbs.db
 Thumbs.db
 
-# Uploaded images
-static/uploads/*
-!static/uploads/.gitkeep
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Flask debugging
 flask_session/

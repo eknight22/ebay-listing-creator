@@ -19,7 +19,10 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
+
+# Initialize eBay client with app
+ebay_client.init_app(app)
 
 # OpenAI API configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -610,27 +613,99 @@ def create_ebay_draft():
     # Get item data
     item_data = session['item_data']
     
-    # Upload images to eBay
-    images = session.get('uploaded_files', [])
-    image_urls = []
-    for image_path in images:
-        full_path = os.path.join(app.config['UPLOAD_FOLDER'], image_path)
-        result = ebay_client.upload_image(full_path)
+    # Check if we're using mock authentication
+    is_mock = isinstance(session.get('ebay_token'), dict) and session['ebay_token'].get('access_token', '').startswith('mock_')
+    
+    if is_mock:
+        # Return a mock success response
+        mock_id = 'MOCK-' + secrets.token_hex(4)
+        return jsonify({
+            'success': True,
+            'listing_id': mock_id,
+            'message': 'Mock draft listing created successfully!',
+            'details': {
+                'title': item_data.get('title', 'Unknown Title'),
+                'price': item_data.get('starting_price', '0.00'),
+                'category_id': item_data.get('category_id', 'Unknown Category'),
+                'image_count': len(session.get('uploaded_files', [])),
+                'mock_mode': True,
+                'url': f"https://ebay.com/itm/{mock_id}" 
+            }
+        })
+    
+    # For real eBay integration:
+    try:
+        # Upload images to eBay
+        images = session.get('uploaded_files', [])
+        image_urls = []
+        for image_path in images:
+            full_path = os.path.join(app.config['UPLOAD_FOLDER'], image_path)
+            result = ebay_client.upload_image(full_path)
+            if result['success']:
+                image_urls.append(result['image_url'])
+        
+        # Add image URLs to item data
+        item_data['image_urls'] = image_urls
+        
+        # Create draft listing
+        result = ebay_client.create_draft_listing(item_data)
+        
         if result['success']:
-            image_urls.append(result['image_url'])
+            flash('Successfully created draft listing on eBay!')
+            return jsonify(result)
+        else:
+            flash(f'Error creating draft listing: {result.get("error", "Unknown error")}')
+            return jsonify(result)
+    except Exception as e:
+        error_msg = str(e)
+        flash(f'Error creating draft listing: {error_msg}')
+        return jsonify({
+            'success': False, 
+            'error': error_msg,
+            'details': 'Check console logs for more information'
+        })
+
+# Add a mock eBay auth route for testing
+@app.route('/mock_ebay_auth')
+def mock_ebay_auth():
+    """Mock eBay authentication for testing purposes"""
+    session['ebay_token'] = {
+        'access_token': 'mock_access_token',
+        'refresh_token': 'mock_refresh_token',
+        'expires_in': 7200,
+        'token_type': 'User'
+    }
+    session['ebay_paypal_email'] = 'test@example.com'
+    session['ebay_postal_code'] = '12345'
+    flash('Successfully connected to eBay (MOCK)!')
+    return redirect(url_for('preview'))
+
+# Add a special local eBay auth callback that doesn't require HTTPS
+@app.route('/auth/ebay/local_callback')
+def ebay_local_callback():
+    """Special handler for local testing with simulated OAuth flow"""
+    flash('This is a simulated OAuth callback for local testing. In production, eBay requires HTTPS.')
     
-    # Add image URLs to item data
-    item_data['image_urls'] = image_urls
+    # The code would normally come from eBay's OAuth redirect
+    mock_code = 'mock_authorization_code'
     
-    # Create draft listing
-    result = ebay_client.create_draft_listing(item_data)
-    
-    if result['success']:
-        flash('Successfully created draft listing on eBay!')
-        return jsonify(result)
-    else:
-        flash(f'Error creating draft listing: {result.get("error", "Unknown error")}')
-        return jsonify(result)
+    try:
+        # Simulate a token response
+        session['ebay_token'] = {
+            'access_token': 'mock_access_token_from_code',
+            'refresh_token': 'mock_refresh_token',
+            'expires_in': 7200,
+            'token_type': 'User'
+        }
+        flash('Successfully connected to eBay (simulated)!')
+        return redirect(url_for('ebay_settings'))
+    except Exception as e:
+        flash(f'Error in mock eBay authentication: {str(e)}')
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    # Get port from environment variable (for Render compatibility)
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Use 0.0.0.0 to bind to all interfaces
+    app.run(host='0.0.0.0', port=port, debug=False if os.environ.get('RENDER') else True) 

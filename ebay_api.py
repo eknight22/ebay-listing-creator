@@ -6,6 +6,8 @@ from flask import session, redirect, url_for, request, flash
 from requests_oauthlib import OAuth2Session
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
+import requests
+from urllib.parse import urlencode
 
 # Load eBay API credentials from environment variables
 EBAY_APP_ID = os.environ.get('EBAY_APP_ID')
@@ -16,12 +18,16 @@ EBAY_CLIENT_SECRET = os.environ.get('EBAY_CLIENT_SECRET')
 EBAY_RU_NAME = os.environ.get('EBAY_RU_NAME')
 
 # eBay OAuth URLs
-EBAY_OAUTH_URL = 'https://auth.ebay.com/oauth2/authorize'
-EBAY_TOKEN_URL = 'https://api.ebay.com/identity/v1/oauth2/token'
-
-# eBay API endpoints
 EBAY_SANDBOX = os.environ.get('EBAY_SANDBOX', 'True').lower() in ('true', 'yes', '1')
 EBAY_SITE_ID = os.environ.get('EBAY_SITE_ID', '0')  # 0 = US
+
+# Set correct eBay OAuth URLs based on environment
+if EBAY_SANDBOX:
+    EBAY_OAUTH_URL = 'https://auth.sandbox.ebay.com/oauth2/authorize'
+    EBAY_TOKEN_URL = 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
+else:
+    EBAY_OAUTH_URL = 'https://auth.ebay.com/oauth2/authorize'
+    EBAY_TOKEN_URL = 'https://api.ebay.com/identity/v1/oauth2/token'
 
 # Scopes needed for listing creation
 EBAY_SCOPES = [
@@ -50,22 +56,95 @@ class EbayAPIClient:
     
     def get_authorization_url(self):
         """Get eBay OAuth authorization URL"""
-        oauth = OAuth2Session(EBAY_CLIENT_ID, redirect_uri=EBAY_RU_NAME, scope=EBAY_SCOPES)
-        authorization_url, state = oauth.authorization_url(EBAY_OAUTH_URL)
-        session['oauth_state'] = state
+        # Debug output
+        print("eBay OAuth Debug Info:")
+        print(f"CLIENT_ID (length): {len(EBAY_CLIENT_ID) if EBAY_CLIENT_ID else 0}")
+        print(f"CLIENT_SECRET (length): {len(EBAY_CLIENT_SECRET) if EBAY_CLIENT_SECRET else 0}")
+        print(f"RU_NAME: {EBAY_RU_NAME}")
+        print(f"OAUTH_URL: {EBAY_OAUTH_URL}")
+        print(f"SANDBOX: {EBAY_SANDBOX}")
+        
+        # Check if RU_NAME is a URL or an eBay RU name
+        if EBAY_RU_NAME and '://' in EBAY_RU_NAME:
+            # It's a full URL, use it directly
+            redirect_uri = EBAY_RU_NAME
+            print(f"Using full URL as redirect_uri: {redirect_uri}")
+        else:
+            # It's an eBay RU name, handle accordingly
+            # For local development with ngrok, follow the instructions in README.md
+            print(f"Using eBay RU name: {EBAY_RU_NAME}")
+            # When using an RU name, it's different from a redirect URI in OAuth terminology
+            # eBay's authorization server will handle the translation internally
+            redirect_uri = EBAY_RU_NAME
+        
+        # eBay requires special parameters for their OAuth implementation
+        params = {
+            'client_id': EBAY_CLIENT_ID,
+            'redirect_uri': redirect_uri,
+            'response_type': 'code',
+            'scope': ' '.join(EBAY_SCOPES),
+            'prompt': 'login',
+            # Add RuName parameter if it's the eBay format
+            **({"runame": EBAY_RU_NAME} if not '://' in EBAY_RU_NAME else {})
+        }
+        
+        # Use urllib to properly encode the parameters
+        authorization_url = f"{EBAY_OAUTH_URL}?{urlencode(params)}"
+        
+        print(f"Generated Authorization URL: {authorization_url}")
+        session['oauth_state'] = 'ebay_oauth_state'  # eBay doesn't use standard state parameter
         return authorization_url
     
     def get_token_from_code(self, code):
         """Exchange authorization code for token"""
-        oauth = OAuth2Session(EBAY_CLIENT_ID, redirect_uri=EBAY_RU_NAME)
-        token = oauth.fetch_token(
-            EBAY_TOKEN_URL,
-            code=code,
-            client_secret=EBAY_CLIENT_SECRET,
-            include_client_id=True
-        )
-        session['ebay_token'] = token
-        return token
+        print(f"Exchanging authorization code for token. Code length: {len(code)}")
+        
+        # Determine if we're using a URL or RU name
+        if EBAY_RU_NAME and '://' in EBAY_RU_NAME:
+            redirect_uri = EBAY_RU_NAME
+            print(f"Using full URL as redirect_uri: {redirect_uri}")
+        else:
+            redirect_uri = EBAY_RU_NAME
+            print(f"Using eBay RU name: {EBAY_RU_NAME}")
+        
+        # eBay requires a specific format for token requests
+        token_data = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri
+        }
+        
+        # Add RuName parameter if using eBay RU name format
+        if not '://' in EBAY_RU_NAME:
+            token_data['runame'] = EBAY_RU_NAME
+        
+        # eBay requires client_id and client_secret in the Authorization header
+        auth = (EBAY_CLIENT_ID, EBAY_CLIENT_SECRET)
+        
+        # Make the token request
+        try:
+            print(f"Token request data: {token_data}")
+            response = requests.post(
+                EBAY_TOKEN_URL,
+                data=token_data,
+                auth=auth,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                token = response.json()
+                print(f"Token retrieved successfully. Access token length: {len(token.get('access_token', ''))}")
+                session['ebay_token'] = token
+                return token
+            else:
+                print(f"Error retrieving token. Status code: {response.status_code}")
+                print(f"Response: {response.text}")
+                raise Exception(f"Failed to retrieve token: {response.text}")
+                
+        except Exception as e:
+            print(f"Exception during token retrieval: {str(e)}")
+            raise
     
     def _get_trading_api(self):
         """Get Trading API connection"""

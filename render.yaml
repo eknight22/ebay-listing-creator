@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: ebay-listing-creator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: EBAY_APP_ID
+        sync: false
+      - key: EBAY_CERT_ID
+        sync: false
+      - key: EBAY_DEV_ID
+        sync: false
+      - key: EBAY_CLIENT_ID
+        sync: false
+      - key: EBAY_CLIENT_SECRET
+        sync: false
+      - key: EBAY_RU_NAME
+        sync: false
+      - key: EBAY_SANDBOX
+        value: "False"
+      - key: EBAY_SITE_ID
+        value: "0"
+      - key: RENDER
+        value: "true" 
