@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import secrets
 import csv
@@ -9,7 +10,6 @@ from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, send_file, Response
 from werkzeug.utils import secure_filename
 import openai
-from openai import OpenAI
 from dotenv import load_dotenv
 import re
 import requests
@@ -25,9 +25,83 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 # Initialize eBay client with app
 ebay_client.init_app(app)
 
-# OpenAI API configuration - using the new client initialization method
-# This avoids the issue with proxies parameter
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Deal with proxy environment variables that might be causing issues
+# Remove or clear any proxy-related environment variables
+proxy_vars = ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'no_proxy', 'NO_PROXY']
+for var in proxy_vars:
+    if var in os.environ:
+        del os.environ[var]
+
+# Try multiple approaches to initialize OpenAI client
+# First try direct OpenAI import
+try:
+    try:
+        # First approach: Import OpenAI directly (new style)
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        print("OpenAI client initialized successfully (approach 1)")
+    except (ImportError, TypeError, Exception) as e:
+        # Second approach: Try with custom httpx transport
+        print(f"Trying approach 2: {str(e)}")
+        from openai import OpenAI
+        import httpx
+        transport = httpx.HTTPTransport(proxy=None)
+        http_client = httpx.Client(transport=transport)
+        client = OpenAI(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            http_client=http_client
+        )
+        print("OpenAI client initialized successfully (approach 2)")
+except Exception as e:
+    # Final approach: Use our custom implementation that doesn't rely on the OpenAI library
+    print(f"Using custom OpenAI client implementation: {str(e)}")
+    import importlib.util
+    try:
+        # Check if our custom module exists
+        if importlib.util.find_spec("openai_client") is None:
+            # Import failed, create a dummy client
+            class DummyClient:
+                class Chat:
+                    class Completions:
+                        def create(self, **kwargs):
+                            raise RuntimeError("OpenAI client could not be initialized. API calls will fail.")
+                
+                def __init__(self):
+                    self.chat = self.Chat()
+                    self.chat.completions = self.chat.Completions()
+            
+            client = DummyClient()
+        else:
+            # Import our custom module
+            from openai_client import create_chat_completion
+            
+            # Create a client-like interface that uses our custom implementation
+            class CustomClient:
+                class Chat:
+                    class Completions:
+                        def create(self, model, messages, max_tokens=4000, **kwargs):
+                            return create_chat_completion(model, messages, max_tokens)
+                
+                def __init__(self):
+                    self.chat = self.Chat()
+                    self.chat.completions = self.chat.Completions()
+            
+            client = CustomClient()
+            print("Using custom OpenAI client implementation")
+    except Exception as e:
+        print(f"All OpenAI client initialization approaches failed: {str(e)}")
+        # Define a dummy client as a last resort
+        class DummyClient:
+            class Chat:
+                class Completions:
+                    def create(self, **kwargs):
+                        raise RuntimeError("OpenAI client could not be initialized. API calls will fail.")
+            
+            def __init__(self):
+                self.chat = self.Chat()
+                self.chat.completions = self.chat.Completions()
+        
+        client = DummyClient()
 
 # Configure upload settings
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
@@ -411,15 +485,15 @@ def export_csv():
     item_data = session['item_data']
     images = session.get('uploaded_files', [])
     
-    # Create a CSV in memory
+    # Open a string buffer to write CSV data
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Write header rows (info rows)
-    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US', '', '', '', '', '', '', '', '', '', '', '', '', ''])
-    writer.writerow(['#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html', '', '', '', '', '', '', '', '', '', ''])
-    writer.writerow(['#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts', '', '', '', '', '', '', '', '', '', ''])
-    writer.writerow(['#INFO', '', '', '', '', '', '', '', '', '', ''])
+    # Write header rows (info rows) - FIXED to have exactly 15 empty strings
+    writer.writerow(['#INFO', 'Version=0.0.2', 'Template= eBay-draft-listings-template_US'] + [''] * 15)
+    writer.writerow(['#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html'] + [''] * 10)
+    writer.writerow(['#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.com/sh/lst/drafts'] + [''] * 10)
+    writer.writerow(['#INFO'] + [''] * 10)
     
     # Write column headers
     writer.writerow([
